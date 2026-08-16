@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>AI Medical Chatbot & Digital Health Platform</title>
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css')}}"/>
+	</head>
+	
+	<body>
+		<div class="container-fluid h-100">
+			<div class="row justify-content-center h-100">		
+				<div class="col-md-9 col-xl-7 chat">
+					<div class="card">
+						<!-- Header -->
+						<div class="card-header msg_head pb-2">
+							<div class="d-flex bd-highlight justify-content-between align-items-center mb-2">
+								<div class="d-flex bd-highlight align-items-center">
+									<div class="img_cont">
+										<img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img">
+										<span class="online_icon"></span>
+									</div>
+									<div class="user_info">
+										<span>AI Medical Assistant</span>
+										<p>RAG Search • Triage • Drug Checker • Geo Locator</p>
+									</div>
+								</div>
+								<div class="d-flex align-items-center">
+									<button type="button" id="btnClearChat" class="btn btn-sm btn-outline-danger text-white mr-2" title="Clear Chat History">
+										<i class="fas fa-trash-alt"></i> Clear
+									</button>
+									<select id="languageSelect" class="lang_select">
+										<option value="English" selected>🌐 English</option>
+										<option value="Hindi">🌐 Hindi (हिन्दी)</option>
+										<option value="Spanish">🌐 Spanish (Español)</option>
+										<option value="French">🌐 French (Français)</option>
+										<option value="German">🌐 German (Deutsch)</option>
+									</select>
+								</div>
+							</div>
+							
+							<!-- Action Toolbar Buttons -->
+							<div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary">
+								<a href="/download_summary" class="btn btn-sm btn-outline-info text-white" title="Download Consultation PDF Summary">
+									<i class="fas fa-file-pdf"></i> PDF Summary
+								</a>
+								<button type="button" class="btn btn-sm btn-outline-warning text-white" data-toggle="modal" data-target="#drugModal">
+									<i class="fas fa-pills"></i> Drug Checker
+								</button>
+								<button type="button" class="btn btn-sm btn-outline-success text-white" data-toggle="modal" data-target="#hospitalModal">
+									<i class="fas fa-hospital-symbol"></i> Find Hospitals
+								</button>
+								<button type="button" class="btn btn-sm btn-outline-light text-white" data-toggle="modal" data-target="#reminderModal">
+									<i class="fas fa-clock"></i> Med Alarms
+								</button>
+							</div>
+
+							<!-- Quick Symptom Chips -->
+							<div class="quick_chips_container mt-2">
+								<span class="quick_chip" onclick="submitQuickQuery('What are the symptoms and home treatment for fever and headache?')">🤒 Fever & Headache</span>
+								<span class="quick_chip" onclick="submitQuickQuery('What is acne and how to treat it?')">✨ Acne Care</span>
+								<span class="quick_chip" onclick="submitQuickQuery('What are the symptoms of asthma?')">🫁 Asthma Signs</span>
+								<span class="quick_chip" onclick="openDrugModal('Aspirin, Warfarin')">💊 Check Medicine Side Effects</span>
+							</div>
+						</div>
+						
+						<!-- Chat Body -->
+						<div id="messageFormeight" class="card-body msg_card_body">
+							<!-- Welcome Message -->
+							<div class="d-flex justify-content-start mb-4">
+								<div class="img_cont_msg">
+									<img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg">
+								</div>
+								<div class="msg_cotainer">
+									Hello! I am your AI Medical Assistant. Describe your symptoms, check medicine safety, or locate nearby hospitals.
+								</div>
+							</div>
+						</div>
+						
+						<div id="uploadStatusArea" class="px-3" style="display:none;"></div>
+						
+						<!-- Footer -->
+						<div class="card-footer">
+							<form id="messageArea" class="input-group">
+								<div class="input-group-prepend">
+									<button type="button" id="uploadBtn" class="input-group-text upload_btn" title="Upload Medical Report PDF">
+										<i class="fas fa-paperclip"></i>
+									</button>
+									<input type="file" id="pdfFileInput" accept=".pdf" style="display:none;">
+								</div>
+								
+								<input type="text" id="text" name="msg" placeholder="Describe symptoms or ask medical questions..." autocomplete="off" class="form-control type_msg" required/>
+								
+								<div class="input-group-append">
+									<button type="button" id="micBtn" class="input-group-text mic_btn" title="Voice Input (Speech-to-Text)">
+										<i class="fas fa-microphone"></i>
+									</button>
+									<button type="submit" id="send" class="input-group-text send_btn" title="Send Message">
+										<i class="fas fa-location-arrow"></i>
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 1. Drug Interaction Checker Modal -->
+		<div class="modal fade" id="drugModal" tabindex="-1" role="dialog" aria-hidden="true">
+		  <div class="modal-dialog modal-dialog-centered" role="document">
+		    <div class="modal-content bg-dark text-white">
+		      <div class="modal-header border-secondary">
+		        <h5 class="modal-title"><i class="fas fa-pills text-warning"></i> Drug Interaction Checker</h5>
+		        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+		      </div>
+		      <div class="modal-body">
+		        <p class="small text-muted mb-2">Enter 2 or more medicines to check for harmful interactions:</p>
+		        <input type="text" id="drugInput" class="form-control mb-2" placeholder="e.g. Aspirin, Warfarin, Ibuprofen">
+		        <div class="mb-3">
+		          <button type="button" class="btn btn-xs btn-outline-info text-white" onclick="setSampleDrugs('Aspirin, Warfarin')">Sample: Aspirin + Warfarin</button>
+		          <button type="button" class="btn btn-xs btn-outline-info text-white" onclick="setSampleDrugs('Paracetamol, Ibuprofen')">Sample: Paracetamol + Ibuprofen</button>
+		        </div>
+		        <div id="drugResultArea" class="small p-2 bg-secondary rounded" style="display:none;"></div>
+		      </div>
+		      <div class="modal-footer border-secondary">
+		        <button type="button" id="btnCheckDrugs" class="btn btn-warning btn-block">Check Interactions</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+
+		<!-- 2. Hospital & Pharmacy Finder Modal -->
+		<div class="modal fade" id="hospitalModal" tabindex="-1" role="dialog" aria-hidden="true">
+		  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+		    <div class="modal-content bg-dark text-white">
+		      <div class="modal-header border-secondary">
+		        <h5 class="modal-title"><i class="fas fa-map-marker-alt text-success"></i> Nearby Hospitals & Pharmacies Finder</h5>
+		        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+		      </div>
+		      <div class="modal-body">
+		        <div class="d-flex mb-2">
+		          <button id="btnGeoLocation" class="btn btn-outline-info btn-sm text-white mr-2" type="button">
+		            <i class="fas fa-crosshairs"></i> Detect My Location (GPS)
+		          </button>
+		          <span id="geoStatus" class="small text-muted align-self-center"></span>
+		        </div>
+		        <div class="input-group mb-3">
+		          <input type="text" id="locationInput" class="form-control" placeholder="Enter City, Area, or Pincode (e.g. New York, Delhi)">
+		          <div class="input-group-append">
+		            <button id="btnFindHospitals" class="btn btn-success" type="button">Search</button>
+		          </div>
+		        </div>
+		        <div id="hospitalListArea" class="list-group"></div>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+
+		<!-- 3. Medicine Reminders Modal -->
+		<div class="modal fade" id="reminderModal" tabindex="-1" role="dialog" aria-hidden="true">
+		  <div class="modal-dialog modal-dialog-centered" role="document">
+		    <div class="modal-content bg-dark text-white">
+		      <div class="modal-header border-secondary">
+		        <h5 class="modal-title"><i class="fas fa-clock text-info"></i> Medication Alarm & Dosage Scheduler</h5>
+		        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+		      </div>
+		      <div class="modal-body">
+		        <div class="form-group mb-2">
+		          <label class="small mb-1">Medicine Name:</label>
+		          <input type="text" id="remMed" class="form-control form-control-sm" placeholder="e.g. Amoxicillin">
+		        </div>
+		        <div class="form-group mb-2">
+		          <label class="small mb-1">Dosage:</label>
+		          <input type="text" id="remDosage" class="form-control form-control-sm" placeholder="e.g. 500mg - 1 tablet after meals">
+		        </div>
+		        <div class="form-group mb-3">
+		          <label class="small mb-1">Alarm Time:</label>
+		          <input type="time" id="remTime" class="form-control form-control-sm">
+		        </div>
+		        <button type="button" id="btnSaveReminder" class="btn btn-info btn-sm btn-block mb-3">Add Reminder Alarm</button>
+		        <h6>Active Scheduled Reminders:</h6>
+		        <ul id="activeRemindersList" class="list-group list-group-flush text-dark small"></ul>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+		
+		<script>
+			function submitQuickQuery(queryText) {
+				$("#text").val(queryText);
+				$("#messageArea").submit();
+			}
+
+			function openDrugModal(sampleText) {
+				$("#drugInput").val(sampleText);
+				$('#drugModal').modal('show');
+			}
+
+			function setSampleDrugs(sampleText) {
+				$("#drugInput").val(sampleText);
+			}
+
+			function speakText(text) {
+				if ('speechSynthesis' in window) {
+					window.speechSynthesis.cancel();
+					const utterance = new SpeechSynthesisUtterance(text);
+					const selectedLang = $("#languageSelect").val();
+					if (selectedLang === "Hindi") utterance.lang = "hi-IN";
+					else if (selectedLang === "Spanish") utterance.lang = "es-ES";
+					else if (selectedLang === "French") utterance.lang = "fr-FR";
+					else if (selectedLang === "German") utterance.lang = "de-DE";
+					else utterance.lang = "en-US";
+					
+					window.speechSynthesis.speak(utterance);
+				}
+			}
+
+			$(document).ready(function() {
+				if ("Notification" in window && Notification.permission !== "granted") {
+					Notification.requestPermission();
+				}
+
+				$("#btnClearChat").on("click", function() {
+					$("#messageFormeight").html('<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">Conversation reset. Ask any new medical questions!</div></div>');
+				});
+
+				// GPS Location Auto Detect
+				$("#btnGeoLocation").on("click", function() {
+					if ("geolocation" in navigator) {
+						$("#geoStatus").text("Locating...");
+						navigator.geolocation.getCurrentPosition(function(position) {
+							const lat = position.coords.latitude;
+							const lon = position.coords.longitude;
+							$("#locationInput").val(lat + "," + lon);
+							$("#geoStatus").text("GPS Acquired!");
+							$("#btnFindHospitals").click();
+						}, function() {
+							$("#geoStatus").text("Location permission denied.");
+						});
+					} else {
+						alert("Geolocation is not supported by your browser.");
+					}
+				});
+
+				// Feature 1: Drug Interaction Checker
+				$("#btnCheckDrugs").on("click", function() {
+					const drugs = $("#drugInput").val().trim();
+					if (!drugs) return;
+					$("#drugResultArea").html('<i class="fas fa-spinner fa-spin"></i> Analyzing interactions...').show();
+					$.post("/check_drugs", { drugs: drugs }, function(res) {
+						if (res.success) {
+							$("#drugResultArea").html('<strong>Evaluation:</strong><br>' + escapeHtml(res.result).replace(/\n/g, '<br>'));
+						} else {
+							$("#drugResultArea").html('<span class="text-danger">' + res.result + '</span>');
+						}
+					});
+				});
+
+				// Feature 2: Nearby Hospital Finder
+				$("#btnFindHospitals").on("click", function() {
+					const loc = $("#locationInput").val().trim();
+					if (!loc) return;
+					$("#hospitalListArea").html('<div class="p-3 text-center"><i class="fas fa-spinner fa-spin"></i> Locating hospitals near ' + escapeHtml(loc) + '...</div>');
+					$.post("/find_nearby", { location: loc }, function(res) {
+						let html = "";
+						if (res.hospitals && res.hospitals.length > 0) {
+							res.hospitals.forEach(function(h) {
+								html += '<a href="' + h.maps_url + '" target="_blank" class="list-group-item list-group-item-action bg-secondary text-white border-dark mb-1 rounded">' +
+									'<h6 class="mb-1 text-warning"><i class="fas fa-hospital"></i> ' + escapeHtml(h.name) + '</h6>' +
+									'<p class="mb-1 small">' + escapeHtml(h.address) + '</p>' +
+									'<small class="text-info"><i class="fas fa-directions"></i> Get Directions on Map</small></a>';
+							});
+						} else {
+							html = '<div class="p-3 text-muted">No hospitals found.</div>';
+						}
+						$("#hospitalListArea").html(html);
+					});
+				});
+
+				// Feature 3: Medication Reminders
+				$("#btnSaveReminder").on("click", function() {
+					const med = $("#remMed").val().trim();
+					const dos = $("#remDosage").val().trim();
+					const time = $("#remTime").val().trim();
+					if (!med || !time) return;
+
+					$.post("/save_reminder", { medicine: med, dosage: dos, time: time }, function(res) {
+						if (res.success) {
+							loadReminders();
+							$("#remMed").val("");
+							$("#remDosage").val("");
+							$("#remTime").val("");
+						}
+					});
+				});
+
+				function loadReminders() {
+					$.get("/list_reminders", function(res) {
+						let html = "";
+						if (res.reminders && res.reminders.length > 0) {
+							res.reminders.forEach(function(r) {
+								html += '<li class="list-group-item bg-light">⏰ <b>' + escapeHtml(r.medicine) + '</b> (' + escapeHtml(r.dosage) + ') at <b>' + escapeHtml(r.time) + '</b></li>';
+							});
+						} else {
+							html = '<li class="list-group-item text-muted">No active alarms set.</li>';
+						}
+						$("#activeRemindersList").html(html);
+					});
+				}
+				loadReminders();
+
+				// PDF Upload Handling
+				$("#uploadBtn").on("click", function() {
+					$("#pdfFileInput").click();
+				});
+
+				$("#pdfFileInput").on("change", function() {
+					const file = this.files[0];
+					if (!file) return;
+
+					const formData = new FormData();
+					formData.append("file", file);
+
+					$("#uploadStatusArea").html('<div class="upload_status"><i class="fas fa-spinner fa-spin"></i> Indexing medical PDF report...</div>').show();
+
+					$.ajax({
+						url: "/upload",
+						type: "POST",
+						data: formData,
+						contentType: false,
+						processData: false,
+						success: function(res) {
+							if (res.success) {
+								$("#uploadStatusArea").html('<div class="upload_status" style="color:#2ed573;"><i class="fas fa-check-circle"></i> ' + res.message + '</div>').show();
+							} else {
+								$("#uploadStatusArea").html('<div class="upload_status" style="color:#ff4757;"><i class="fas fa-exclamation-circle"></i> ' + res.message + '</div>').show();
+							}
+							setTimeout(() => { $("#uploadStatusArea").fadeOut(); }, 5000);
+						}
+					});
+				});
+
+				// Speech-to-Text
+				const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+				let recognition = null;
+				if (SpeechRecognition) {
+					recognition = new SpeechRecognition();
+					recognition.continuous = false;
+					recognition.interimResults = false;
+
+					recognition.onstart = function() { $("#micBtn").addClass("recording"); };
+					recognition.onresult = function(e) { $("#text").val(e.results[0][0].transcript); $("#micBtn").removeClass("recording"); };
+					recognition.onerror = function() { $("#micBtn").removeClass("recording"); };
+					recognition.onend = function() { $("#micBtn").removeClass("recording"); };
+				}
+
+				$("#micBtn").on("click", function() {
+					if (!recognition) { alert("Speech recognition not supported."); return; }
+					recognition.lang = $("#languageSelect").val() === "Hindi" ? "hi-IN" : "en-US";
+					recognition.start();
+				});
+
+				// Form Submission / Chat Query
+				$("#messageArea").on("submit", function(event) {
+					event.preventDefault();
+					const date = new Date();
+					const str_time = String(date.getHours()).padStart(2, '0') + ":" + String(date.getMinutes()).padStart(2, '0');
+					const rawText = $("#text").val().trim();
+					if (!rawText) return;
+					const selectedLang = $("#languageSelect").val();
+
+					const userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + 
+						escapeHtml(rawText) + '<span class="msg_time_send">' + str_time + '</span></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+					
+					$("#text").val("");
+					$("#messageFormeight").append(userHtml);
+					scrollToBottom();
+
+					// Add Animated Typing Indicator
+					const loadingId = "loading_" + Date.now();
+					const loadingHtml = '<div id="' + loadingId + '" class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer"><i class="fas fa-spinner fa-spin"></i> Analyzing medical database & symptoms...</div></div>';
+					$("#messageFormeight").append(loadingHtml);
+					scrollToBottom();
+
+					$.ajax({
+						data: { msg: rawText, language: selectedLang },
+						type: "POST",
+						url: "/get",
+					}).done(function(data) {
+						$("#" + loadingId).remove();
+
+						let answerText = "";
+						let sourcesHtml = "";
+						let emergencyHtml = "";
+						let triageBadgeHtml = "";
+
+						if (typeof data === "object") {
+							answerText = data.answer;
+							if (data.is_emergency) {
+								emergencyHtml = '<div class="emergency_banner">' + escapeHtml(answerText) + '</div>';
+							}
+							if (data.triage) {
+								triageBadgeHtml = '<div class="mb-1"><span class="badge badge-pill badge-dark border border-secondary p-1 mr-1">' + data.triage.label + '</span>' +
+									'<span class="badge badge-pill badge-info p-1"><i class="fas fa-user-md"></i> ' + escapeHtml(data.triage.specialist) + '</span></div>';
+							}
+							if (data.sources && data.sources.length > 0) {
+								sourcesHtml = '<div class="sources_container"><strong>📚 Sources:</strong> ';
+								data.sources.forEach(function(src) {
+									sourcesHtml += '<span class="source_tag">' + escapeHtml(src) + '</span>';
+								});
+								sourcesHtml += '</div>';
+							}
+						} else {
+							answerText = data;
+						}
+
+						const cleanTextForSpeech = answerText.replace(/[*#_]/g, '');
+
+						let botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">';
+						
+						botHtml += triageBadgeHtml;
+						if (emergencyHtml) botHtml += emergencyHtml;
+						else botHtml += escapeHtml(answerText);
+
+						botHtml += '<i class="fas fa-volume-up tts_btn" title="Read Aloud" onclick="speakText(\'' + escapeJsString(cleanTextForSpeech) + '\')"></i>';
+						botHtml += sourcesHtml;
+						botHtml += '<span class="msg_time">' + str_time + '</span></div></div>';
+
+						$("#messageFormeight").append(botHtml);
+						scrollToBottom();
+					});
+				});
+
+				function scrollToBottom() {
+					const chatBody = document.getElementById("messageFormeight");
+					chatBody.scrollTop = chatBody.scrollHeight;
+				}
+
+				function escapeHtml(str) {
+					return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+				}
+
+				function escapeJsString(str) {
+					return str.replace(/'/g, "\\'").replace(/\n/g, " ");
+				}
+			});
+		</script>
+    </body>
+</html>
