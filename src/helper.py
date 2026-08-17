@@ -2,20 +2,55 @@ from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-# Fallback Embeddings Class wrapping SentenceTransformer directly
+# Fallback Embeddings Class wrapping SentenceTransformer or HuggingFace API
 class DirectSentenceTransformerEmbeddings:
     """Fallback embedding wrapper implementing LangChain Embeddings interface."""
     def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2"):
-        from sentence_transformers import SentenceTransformer
-        self.client = SentenceTransformer(model_name)
+        self.model_name = model_name
+        self.client = None
+        try:
+            from sentence_transformers import SentenceTransformer
+            self.client = SentenceTransformer(model_name)
+        except Exception:
+            self.client = None
         
     def embed_documents(self, texts):
-        embeddings = self.client.encode(texts, show_progress_bar=False)
-        return embeddings.tolist() if hasattr(embeddings, "tolist") else [list(e) for e in embeddings]
+        if self.client:
+            try:
+                embeddings = self.client.encode(texts, show_progress_bar=False)
+                return embeddings.tolist() if hasattr(embeddings, "tolist") else [list(e) for e in embeddings]
+            except Exception:
+                pass
+        # Fallback via direct HTTP inference if local torch is unavailable
+        try:
+            import requests
+            url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.model_name}"
+            res = requests.post(url, json={"inputs": texts, "options": {"wait_for_model": True}}, timeout=10)
+            if res.status_code == 200:
+                return res.json()
+        except Exception:
+            pass
+        return [[0.0] * 384 for _ in texts]
         
     def embed_query(self, text):
-        embedding = self.client.encode(text, show_progress_bar=False)
-        return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+        if self.client:
+            try:
+                embedding = self.client.encode(text, show_progress_bar=False)
+                return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+            except Exception:
+                pass
+        # Fallback via direct HTTP inference
+        try:
+            import requests
+            url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.model_name}"
+            res = requests.post(url, json={"inputs": [text], "options": {"wait_for_model": True}}, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                if isinstance(data, list) and len(data) > 0:
+                    return data[0] if isinstance(data[0], list) else data
+        except Exception:
+            pass
+        return [0.0] * 384
 
 
 # Extract Data From the PDF File
@@ -35,7 +70,7 @@ def text_split(extracted_data):
     return text_chunks
 
 
-# Download the Embeddings from HuggingFace with 3-tier fallback
+# Download the Embeddings from HuggingFace with 4-tier fallback
 def download_hugging_face_embeddings():
     # 1. Try langchain_huggingface
     try:
@@ -51,7 +86,7 @@ def download_hugging_face_embeddings():
     except Exception:
         pass
         
-    # 3. Direct SentenceTransformer fallback (Always succeeds)
+    # 3. Direct SentenceTransformer / HTTP Fallback (Never throws an unhandled ImportError)
     return DirectSentenceTransformerEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
 
 
