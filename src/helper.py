@@ -1,35 +1,59 @@
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-try:
-    from langchain_huggingface import HuggingFaceEmbeddings
-except ImportError:
-    from langchain_community.embeddings import HuggingFaceEmbeddings
 
 
-#Extract Data From the PDF File
+# Fallback Embeddings Class wrapping SentenceTransformer directly
+class DirectSentenceTransformerEmbeddings:
+    """Fallback embedding wrapper implementing LangChain Embeddings interface."""
+    def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2"):
+        from sentence_transformers import SentenceTransformer
+        self.client = SentenceTransformer(model_name)
+        
+    def embed_documents(self, texts):
+        embeddings = self.client.encode(texts, show_progress_bar=False)
+        return embeddings.tolist() if hasattr(embeddings, "tolist") else [list(e) for e in embeddings]
+        
+    def embed_query(self, text):
+        embedding = self.client.encode(text, show_progress_bar=False)
+        return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+
+
+# Extract Data From the PDF File
 def load_pdf_file(data):
-    loader= DirectoryLoader(data,
-                            glob="*.pdf",
-                            loader_cls=PyPDFLoader)
+    loader = DirectoryLoader(data,
+                             glob="*.pdf",
+                             loader_cls=PyPDFLoader)
 
-    documents=loader.load()
-
+    documents = loader.load()
     return documents
 
 
-
-#Split the Data into Text Chunks
+# Split the Data into Text Chunks
 def text_split(extracted_data):
-    text_splitter=RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=20)
-    text_chunks=text_splitter.split_documents(extracted_data)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=20)
+    text_chunks = text_splitter.split_documents(extracted_data)
     return text_chunks
 
 
-
-#Download the Embeddings from HuggingFace 
+# Download the Embeddings from HuggingFace with 3-tier fallback
 def download_hugging_face_embeddings():
-    embeddings=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')  #this model return 384 dimensions
-    return embeddings
+    # 1. Try langchain_huggingface
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        return HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+    except Exception:
+        pass
+        
+    # 2. Try langchain_community.embeddings
+    try:
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        return HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+    except Exception:
+        pass
+        
+    # 3. Direct SentenceTransformer fallback (Always succeeds)
+    return DirectSentenceTransformerEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+
 
 
 # Emergency Guardrail Keywords Detection
