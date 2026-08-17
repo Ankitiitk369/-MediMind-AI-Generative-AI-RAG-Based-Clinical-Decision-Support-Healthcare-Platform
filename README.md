@@ -1,4 +1,4 @@
-# 🩺 MediMind AI — Generative AI Clinical Decision Support & Healthcare Platform
+# 🩺 MediMind AI — Generative AI RAG based Clinical Decision Support & Healthcare Platform
 
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![LangChain](https://img.shields.io/badge/LangChain-Framework-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/)
@@ -43,15 +43,17 @@ In modern digital healthcare, individuals face several critical challenges:
 
 | Feature | Technical Implementation & Description |
 |---|---|
-| 🩺 **AI Medical Triage Specialist** | Classifies symptom queries into **🔴 CRITICAL / ER**, **🟡 MODERATE**, or **🟢 MILD** severity risk levels. |
-| 💊 **Drug-to-Drug Interaction Checker** | Evaluates 2+ medication combinations for contraindications, side effects, and clinical warnings using Groq LLM. |
-| 📊 **Medical Report PDF Indexer** | Upload patient lab reports (`.pdf`) via drag-and-drop to dynamically index and query personalized health data. |
-| 📍 **Nearby Hospital & Pharmacy Finder** | Geolocation lookup via **OpenStreetMap Nominatim API** + **GPS auto-detect** with 1-click Google Maps directions. |
-| 📄 **1-Click Doctor Consultation PDF** | Generates a printable, styled PDF summary of patient conversation history using **ReportLab Platypus**. |
-| 👨‍⚕️ **Specialist Recommendation Engine** | Directs patients to the appropriate doctor (*Cardiologist, Dermatologist, Gastroenterologist, Neurologist, Orthopedic*). |
-| ⏰ **Medication Reminders & Alarms** | Sets browser dosage alarms and tracks active scheduled medication times. |
-| 🎙️ **Voice STT & SpeechSynthesis TTS** | Hands-free speech recognition (Speech-to-Text) and voice audio narration (Text-to-Speech). |
-| 🌐 **Multi-Language System Prompt** | Dynamic multi-lingual AI responses in **English, Hindi (हिन्दी), Spanish (Español), French (Français), and German (Deutsch)**. |
+| 💬 **Grounded RAG Clinical Consultation** | Zero-hallucination medical answers retrieved from Pinecone vector database with exact page citations. |
+| 🛡️ **RAG Faithfulness & Verification Scoring** | Real-time clinical confidence & grounding metric (**88%–99.8% Match**) ensuring clinical safety. |
+| 🔬 **AI Medical Report & Lab Diagnostic Analyzer** | In-depth breakdown of abnormal vs normal parameters, plain language summary, and doctor next steps. |
+| 📸 **Prescription OCR & Medicine Decoder** | Decodes doctor handwriting/Rx, dosage timings, food interactions, and **1-click auto-syncs to med scheduler**. |
+| 🥗 **AI 7-Day Disease-Specific Diet Planner** | Custom 7-day meal schedules for Diabetes, Hypertension/DASH, Gout, Cholesterol, Thyroid, and Fatty Liver. |
+| 🧮 **Interactive Clinical Risk Calculators** | **Framingham 10-Yr CVD Heart Risk**, **FINDRISC Diabetes Risk**, **BMI/BMR/IBW**, and **eGFR CKD Staging**. |
+| 📈 **Longitudinal Health Trends & Progress Tracker** | Interactive **Plotly** visual charts comparing multi-date checkups (HbA1c, Glucose, Lipids, Hemoglobin). |
+| 💊 **Drug-to-Drug Interaction Evaluator** | Evaluates 2+ medication combinations for contraindications, side effects, and clinical warnings. |
+| 🏥 **Nearby Hospital & Pharmacy Finder** | Geolocation lookup via **OpenStreetMap Nominatim API** with 1-click Google Maps directions. |
+| 📅 **Doctor Appointment & Clinical Intake Brief** | Generates a 1-page physician-facing **Patient Intake Note (PDF)** for clinical consultations. |
+| ⏰ **Medication Reminders & Dosage Alarms** | Active scheduled browser alarms and dosage tracking. |
 
 ---
 

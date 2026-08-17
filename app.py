@@ -7,7 +7,9 @@ from src.helper import (
     text_split,
     classify_triage_severity,
     fetch_nearby_hospitals,
-    generate_consultation_pdf
+    generate_consultation_pdf,
+    extract_text_from_pdf,
+    generate_medical_report_pdf
 )
 from langchain_pinecone import Pinecone as PineconeVectorStore
 from pinecone import Pinecone as PineconeClient
@@ -48,7 +50,7 @@ docsearch = PineconeVectorStore(
 
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.4, max_tokens=600)
+llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.4, max_tokens=600)
 
 prompt = ChatPromptTemplate.from_messages(
     [
@@ -77,24 +79,48 @@ def upload_file():
     if file.filename == '':
         return jsonify({"success": False, "message": "No selected file"})
     
+    language = request.form.get("language", "English")
+    
     if file and file.filename.lower().endswith('.pdf'):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
         try:
+            # 1. Extract text and generate comprehensive AI Clinical Analysis
+            report_text = extract_text_from_pdf(filepath)
+            
+            analysis_prompt = (
+                f"You are a Chief Medical Officer and Clinical Laboratory Specialist.\n"
+                f"Analyze the following medical report in {language}:\n\n"
+                f"{report_text}\n\n"
+                f"Provide:\n"
+                f"1. Report Overview & Health Status\n"
+                f"2. Abnormal Parameters Breakdown (Value, Normal Range, Meaning in simple language)\n"
+                f"3. Plain Language Summary for the patient\n"
+                f"4. Dietary & Lifestyle Recommendations\n"
+                f"5. Recommended Specialist & Next Steps\n"
+                f"6. Red Flag Warning Symptoms\n"
+            )
+            analysis_res = llm.invoke(analysis_prompt)
+            analysis_text = analysis_res.content
+
+            # 2. Index to Pinecone for RAG retrieval
             docs = load_pdf_file(data=app.config['UPLOAD_FOLDER'])
             chunks = text_split(docs)
             docsearch.add_documents(chunks)
+            
             return jsonify({
                 "success": True,
                 "filename": filename,
-                "message": f"Successfully processed '{filename}'! Medical content indexed."
+                "analysis": analysis_text,
+                "message": f"Successfully analyzed and indexed '{filename}'!"
             })
         except Exception as e:
-            return jsonify({"success": False, "message": f"Error indexing PDF: {str(e)}"})
+            return jsonify({"success": False, "message": f"Error processing PDF: {str(e)}"})
             
     return jsonify({"success": False, "message": "Only PDF files are supported."})
+
 
 
 @app.route("/get", methods=["GET", "POST"])
