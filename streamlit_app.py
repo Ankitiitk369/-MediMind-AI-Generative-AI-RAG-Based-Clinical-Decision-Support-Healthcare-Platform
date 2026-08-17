@@ -280,26 +280,49 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# ---------------- SECRETS & API KEY LOADER ---------------- #
+def get_api_key(key_name, default=None):
+    """Safely retrieves API keys from st.secrets, session_state, or os.environ."""
+    # 1. Check Streamlit Cloud secrets
+    try:
+        if hasattr(st, "secrets") and key_name in st.secrets:
+            val = st.secrets[key_name]
+            if val and str(val).strip():
+                return str(val).strip()
+    except Exception:
+        pass
+    
+    # 2. Check session state (manual entry)
+    session_key = f"user_{key_name}"
+    if session_key in st.session_state and st.session_state[session_key]:
+        return str(st.session_state[session_key]).strip()
+        
+    # 3. Check os.environ (.env file)
+    val = os.environ.get(key_name)
+    if val and str(val).strip():
+        return str(val).strip()
+        
+    return default
+
+
 # ---------------- INITIALIZE & CACHE BACKEND SERVICES ---------------- #
 @st.cache_resource(show_spinner=False)
-def init_services():
+def init_services(pinecone_key=None, groq_key=None):
     """Initializes embeddings, vector store, and Groq LLM with caching."""
-    pinecone_key = os.environ.get('PINECONE_API_KEY')
-    groq_key = os.environ.get('GROQ_API_KEY')
-    
     if not pinecone_key or not groq_key:
-        return None, None, None, "Missing PINECONE_API_KEY or GROQ_API_KEY in .env file."
+        return None, "Missing PINECONE_API_KEY or GROQ_API_KEY."
         
     try:
-        os.environ["PINECONE_API_KEY"] = pinecone_key
-        os.environ["GROQ_API_KEY"] = groq_key
+        # Safely set environment strings
+        os.environ["PINECONE_API_KEY"] = str(pinecone_key)
+        os.environ["GROQ_API_KEY"] = str(groq_key)
         
         # 1. Embedding Model
         embeddings = download_hugging_face_embeddings()
         
         # 2. Pinecone Index & Vector Store
         index_name = "medicalbot"
-        pc = PineconeClient(api_key=pinecone_key)
+        pc = PineconeClient(api_key=str(pinecone_key))
         index = pc.Index(index_name)
         
         docsearch = PineconeVectorStore(
@@ -309,7 +332,12 @@ def init_services():
         retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
         
         # 3. LLM (Groq Engine)
-        llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.4, max_tokens=600)
+        llm = ChatGroq(
+            model="openai/gpt-oss-120b", 
+            temperature=0.4, 
+            max_tokens=600,
+            api_key=str(groq_key)
+        )
         
         prompt_template = ChatPromptTemplate.from_messages(
             [
@@ -480,11 +508,45 @@ st.markdown("""
 
 
 # ---------------- LOAD BACKEND SERVICES ---------------- #
-services, error_msg = init_services()
+pinecone_api_key = get_api_key("PINECONE_API_KEY")
+groq_api_key = get_api_key("GROQ_API_KEY")
 
-if error_msg:
-    st.error(f"⚠️ Service Initialization Error: {error_msg}")
-    st.info("Please verify your `.env` contains valid `PINECONE_API_KEY` and `GROQ_API_KEY`.")
+services, error_msg = init_services(pinecone_api_key, groq_api_key)
+
+if error_msg or not services:
+    st.markdown("""
+    <div class="report-card-main" style="border-color: rgba(255, 171, 0, 0.4);">
+        <h3 style="color: #ffd740; margin-top:0;">🔑 API Configuration Required</h3>
+        <p style="color: #b0bec5;">To run <b>MediMind AI</b> on Streamlit Community Cloud or locally, your <b>Pinecone API Key</b> and <b>Groq API Key</b> are required.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_k1, col_k2 = st.columns(2)
+    with col_k1:
+        st.markdown("#### ⚡ Option 1: Enter Keys Directly Below")
+        with st.form("api_key_form"):
+            in_groq = st.text_input("Groq API Key", value=groq_api_key or "", type="password", placeholder="gsk_...")
+            in_pinecone = st.text_input("Pinecone API Key", value=pinecone_api_key or "", type="password", placeholder="pcsk_...")
+            if st.form_submit_button("🚀 Connect & Launch MediMind AI", type="primary", use_container_width=True):
+                if in_groq and in_pinecone:
+                    st.session_state["user_GROQ_API_KEY"] = in_groq.strip()
+                    st.session_state["user_PINECONE_API_KEY"] = in_pinecone.strip()
+                    st.rerun()
+                else:
+                    st.error("Please enter both Groq and Pinecone API keys.")
+                    
+    with col_k2:
+        st.markdown("#### ☁️ Option 2: Streamlit Cloud Settings (Permanent)")
+        st.markdown("""
+        1. In the bottom right of your Streamlit app, click **"Manage app"** ⚙️ or **Settings** (⋮ top-right).
+        2. Click on **Secrets** tab and paste:
+        ```toml
+        PINECONE_API_KEY = "your_pinecone_key_here"
+        GROQ_API_KEY = "your_groq_key_here"
+        ```
+        3. Click **Save** and the app will reload automatically!
+        """)
+        
     st.stop()
 
 retriever = services["retriever"]

@@ -1,14 +1,15 @@
-sentence-transformers==2.2.2
+streamlit
+plotly
+pandas
+sentence-transformers
 langchain
-flask
+langchain-community
+langchain-pinecone
+langchain-groq
+pinecone
 pypdf
 python-dotenv
-pinecone[grpc]
-langchain-pinecone
-langchain_community
-langchain_openai
-langchain_groq
-langchain_experimental
 reportlab
 pillow
--e .
+requests
+flask
