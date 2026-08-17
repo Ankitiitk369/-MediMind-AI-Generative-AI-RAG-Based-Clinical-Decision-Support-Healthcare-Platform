@@ -1,3 +1,16 @@
+import os
+import sys
+
+# If Streamlit is running app.py on Streamlit Cloud, execute streamlit_app.py
+if "streamlit" in sys.modules or os.environ.get("STREAMLIT_SERVER_PORT") or os.environ.get("STREAMLIT_RUNTIME") or os.environ.get("STREAMLIT_CONFIG"):
+    import streamlit as st
+    streamlit_app_path = os.path.join(os.path.dirname(__file__), "streamlit_app.py")
+    if os.path.exists(streamlit_app_path):
+        with open(streamlit_app_path, "r", encoding="utf-8") as f:
+            code = f.read()
+        exec(compile(code, streamlit_app_path, "exec"), globals())
+        st.stop()
+
 from flask import Flask, render_template, jsonify, request, session, send_file
 from src.helper import (
     download_hugging_face_embeddings,
@@ -18,7 +31,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from src.prompt import system_prompt
 from werkzeug.utils import secure_filename
-import os
 import uuid
 
 app = Flask(__name__)
@@ -262,6 +274,7 @@ def list_reminders():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    if "streamlit" not in sys.modules and not os.environ.get("STREAMLIT_SERVER_PORT"):
+        app.run(host="0.0.0.0", port=8080, debug=True)
 
 
